@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تطبيق سجل الحضور والغياب</title>
+    
+    <!-- تحميل خطوط جوجل (Tajawal) لجمالية الخط العربي -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- تحميل مكتبة الأيقونات -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- تحميل Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- إعدادات Tailwind لتخصيص الخطوط والألوان -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#1e40af',
+                        present: '#10b981', // أخضر
+                        absent: '#f43f5e',  // أحمر
+                        late: '#f59e0b',    // برتقالي
+                        excused: '#8b5cf6'  // بنفسجي
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* إخفاء شريط التمرير للحصول على مظهر تطبيق حقيقي */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* تأثيرات النقر للأزرار */
+        .btn-active:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="bg-gray-200 h-screen w-full flex justify-center items-center font-sans overflow-hidden">
+
+    <!-- حاوية التطبيق (شكل الهاتف) -->
+    <div class="w-full h-full sm:h-[850px] sm:w-[400px] bg-gray-50 sm:rounded-[2.5rem] sm:shadow-2xl flex flex-col relative overflow-hidden border-4 border-gray-800">
+        
+        <!-- شريط الحالة العلوي (وهمي لجمالية التطبيق) -->
+        <div class="h-6 bg-white w-full flex justify-between items-center px-4 text-xs text-gray-800 font-bold z-20">
+            <span>15:00</span>
+            <div class="flex space-x-reverse space-x-2">
+                <i class="fas fa-signal"></i>
+                <i class="fas fa-wifi"></i>
+                <i class="fas fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- رأس التطبيق -->
+        <header class="bg-white px-5 pt-4 pb-4 shadow-sm z-10 rounded-b-3xl">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-2xl font-extrabold text-gray-800">سجل الحضور</h1>
+                    <p class="text-sm text-gray-500 font-medium">مبادرة ريادة المهنية</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl shadow-inner">
+                    <i class="fas fa-clipboard-user"></i>
+                </div>
+            </div>
+            
+            <!-- اختيار التاريخ -->
+            <div class="relative">
+                <input type="date" id="date-picker" class="w-full bg-gray-100 text-gray-800 font-bold py-3 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all">
+            </div>
+        </header>
+
+        <!-- منطقة المحتوى الرئيسية (القائمة) -->
+        <main class="flex-1 overflow-y-auto hide-scroll p-4 pb-24" id="main-content">
+            
+            <!-- قسم إضافة متدرب جديد -->
+            <div class="mb-6 flex gap-2">
+                <input type="text" id="new-person-name" placeholder="إضافة اسم جديد..." class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-sm shadow-sm">
+                <button onclick="addPerson()" class="bg-gray-800 text-white px-4 py-2 rounded-xl btn-active shadow-md hover:bg-gray-700 transition">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <!-- قائمة المتدربين سيتم حقنها هنا بواسطة جافاسكريبت -->
+            <div id="people-list" class="space-y-4">
+                <!-- يتم التوليد ديناميكياً -->
+            </div>
+
+        </main>
+
+        <!-- شريط التنقل السفلي -->
+        <nav class="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-4 pb-6 flex justify-around items-center rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20">
+            <button onclick="switchView('tracker')" id="nav-tracker" class="flex flex-col items-center text-primary transition-colors">
+                <i class="fas fa-tasks text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">السجل اليومي</span>
+            </button>
+            
+            <!-- زر الحفظ العائم في المنتصف -->
+            <button onclick="saveAttendance()" class="bg-gradient-to-r from-primary to-secondary text-white w-14 h-14 rounded-full flex items-center justify-center -mt-8 shadow-lg shadow-blue-300 btn-active transform transition hover:-translate-y-1">
+                <i class="fas fa-save text-xl"></i>
+            </button>
+            
+            <button onclick="switchView('reports')" id="nav-reports" class="flex flex-col items-center text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-chart-pie text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">التقارير</span>
+            </button>
+        </nav>
+
+        <!-- رسائل التنبيه (Toast) المنبثقة -->
+        <div id="toast" class="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-50 flex items-center gap-3">
+            <i class="fas fa-info-circle"></i>
+            <span id="toast-message" class="text-sm font-bold">تمت العملية</span>
+        </div>
+    </div>
+
+    <script>
+        // --- حالة التطبيق (State) ---
+        let state = {
+            currentDate: new Date().toISOString().split('T')[0], // تاريخ اليوم بصيغة YYYY-MM-DD
+            view: 'tracker', // 'tracker' or 'reports'
+            
+            // قائمة الأسماء الافتراضية
+            people: [
+                { id: 1, name: 'أحمد محمود' },
+                { id: 2, name: 'سارة خالد' },
+                { id: 3, name: 'علي حسن' },
+                { id: 4, name: 'فاطمة الزهراء' },
+                { id: 5, name: 'عمر الفاروق' }
+            ],
+            
+            // سجلات الحضور: مفتاحها التاريخ، وتحتوي على كائن يربط معرف الشخص بحالته
+            // مثال: { '2026-06-17': { 1: 'present', 2: 'absent' } }
+            attendanceRecords: {} 
+        };
+
+        // --- عناصر DOM ---
+        const datePicker = document.getElementById('date-picker');
+        const peopleList = document.getElementById('people-list');
+        const navTracker = document.getElementById('nav-tracker');
+        const navReports = document.getElementById('nav-reports');
+
+        // التهيئة الأولية عند تحميل الصفحة
+        window.onload = () => {
+            datePicker.value = state.currentDate;
+            
+            // التأكد من وجود سجل مبدئي لليوم الحالي
+            if(!state.attendanceRecords[state.currentDate]) {
+                state.attendanceRecords[state.currentDate] = {};
+                // تعيين الجميع كـ "حاضر" كوضع افتراضي لتسهيل العمل
+                state.people.forEach(p => {
+                    state.attendanceRecords[state.currentDate][p.id] = 'present';
+                });
+            }
+
+            datePicker.addEventListener('change', (e) => {
+                state.currentDate = e.target.value;
+                if(!state.attendanceRecords[state.currentDate]) {
+                    state.attendanceRecords[state.currentDate] = {};
+                }
+                renderApp();
+            });
+
+            renderApp();
+        };
+
+        // --- وظائف العرض (Rendering) ---
+        function renderApp() {
+            if (state.view === 'tracker') {
+                renderTracker();
+                updateNavUI(navTracker, navReports);
+            } else {
+                renderReports();
+                updateNavUI(navReports, navTracker);
+            }
+        }
+
+        function renderTracker() {
+            const currentRecord = state.attendanceRecords[state.currentDate] || {};
+            peopleList.innerHTML = '';
+
+            if (state.people.length === 0) {
+                peopleList.innerHTML = `
+                    <div class="text-center text-gray-400 mt-10">
+                        <i class="fas fa-users-slash text-4xl mb-3"></i>
+                        <p>لا يوجد أسماء مسجلة بعد.</p>
+                    </div>`;
+                return;
+            }
+
+            state.people.forEach(person => {
+                // الحالة الحالية للشخص في هذا اليوم، الافتراضي 'none' إذا لم تحدد
+                const status = currentRecord[person.id] || 'none'; 
+                
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 transition-all duration-300 hover:shadow-md';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                ${person.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                            </div>
+                            <span class="font-bold text-gray-800">${person.name}</span>
+                        </div>
+                        <button onclick="removePerson(${person.id})" class="text-gray-300 hover:text-red-500 transition px-2">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-2 mt-2">
+                        <button onclick="setStatus(${person.id}, 'present')" class="py-2 rounded-xl text-xs font-bold transition-all btn-active flex flex-col items-center gap-1 ${status === 'present' ? 'bg-present text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+                            <i class="fas fa-check-circle ${status === 'present' ? 'text-white' : 'text-present'}"></i> حضور
+                        </button>
+                        <button onclick="setStatus(${person.id}, 'absent')" class="py-2 rounded-xl text-xs font-bold transition-all btn-active flex flex-col items-center gap-1 ${status === 'absent' ? 'bg-absent text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+                            <i class="fas fa-times-circle ${status === 'absent' ? 'text-white' : 'text-absent'}"></i> غياب
+                        </button>
+                        <button onclick="setStatus(${person.id}, 'late')" class="py-2 rounded-xl text-xs font-bold transition-all btn-active flex flex-col items-center gap-1 ${status === 'late' ? 'bg-late text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+                            <i class="fas fa-clock ${status === 'late' ? 'text-white' : 'text-late'}"></i> متأخر
+                        </button>
+                        <button onclick="setStatus(${person.id}, 'excused')" class="py-2 rounded-xl text-xs font-bold transition-all btn-active flex flex-col items-center gap-1 ${status === 'excused' ? 'bg-excused text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+                            <i class="fas fa-file-medical ${status === 'excused' ? 'text-white' : 'text-excused'}"></i> إجازة
+                        </button>
+                    </div>
+                `;
+                peopleList.appendChild(card);
+            });
+        }
+
+        function renderReports() {
+            // حساب الإحصائيات لليوم المحدد
+            const currentRecord = state.attendanceRecords[state.currentDate] || {};
+            let stats = { present: 0, absent: 0, late: 0, excused: 0, unrecorded: 0 };
+            
+            state.people.forEach(p => {
+                const s = currentRecord[p.id];
+                if(stats[s] !== undefined) stats[s]++;
+                else stats.unrecorded++;
+            });
+
+            const total = state.people.length;
+            const presentPercentage = total > 0 ? Math.round((stats.present / total) * 100) : 0;
+
+            peopleList.innerHTML = `
+                <div class="bg-gradient-to-br from-primary to-secondary p-6 rounded-3xl shadow-lg text-white mb-6">
+                    <h2 class="text-lg font-bold mb-1">إحصائيات يوم ${state.currentDate}</h2>
+                    <p class="text-sm text-blue-100 mb-4">نظرة عامة على نسبة الحضور</p>
+                    
+                    <div class="flex items-end gap-2 mb-2">
+                        <span class="text-5xl font-extrabold">${presentPercentage}%</span>
+                        <span class="text-sm mb-1">نسبة الحضور</span>
+                    </div>
+                    
+                    <div class="w-full bg-blue-900/50 rounded-full h-2.5 mt-4">
+                        <div class="bg-white h-2.5 rounded-full" style="width: ${presentPercentage}%"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-present">
+                        <div class="text-gray-500 text-xs font-bold mb-1">حاضر</div>
+                        <div class="text-2xl font-extrabold text-gray-800">${stats.present}</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-absent">
+                        <div class="text-gray-500 text-xs font-bold mb-1">غائب</div>
+                        <div class="text-2xl font-extrabold text-gray-800">${stats.absent}</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-late">
+                        <div class="text-gray-500 text-xs font-bold mb-1">متأخر</div>
+                        <div class="text-2xl font-extrabold text-gray-800">${stats.late}</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-excused">
+                        <div class="text-gray-500 text-xs font-bold mb-1">إجازة/عذر</div>
+                        <div class="text-2xl font-extrabold text-gray-800">${stats.excused}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- الإجراءات (Actions) ---
+        
+        function setStatus(personId, status) {
+            if (!state.attendanceRecords[state.currentDate]) {
+                state.attendanceRecords[state.currentDate] = {};
+            }
+            state.attendanceRecords[state.currentDate][personId] = status;
+            renderTracker(); // إعادة تحديث الواجهة فوراً
+        }
+
+        function addPerson() {
+            const input = document.getElementById('new-person-name');
+            const name = input.value.trim();
+            if (name) {
+                const newId = Date.now(); // معرف عشوائي فريد
+                state.people.push({ id: newId, name: name });
+                // تعيين حالته كحاضر افتراضياً لليوم الحالي
+                if (!state.attendanceRecords[state.currentDate]) state.attendanceRecords[state.currentDate] = {};
+                state.attendanceRecords[state.currentDate][newId] = 'present';
+                
+                input.value = '';
+                renderTracker();
+                showToast(`تمت إضافة ${name} بنجاح`);
+            } else {
+                showToast("الرجاء إدخال اسم المتدرب", true);
+            }
+        }
+
+        function removePerson(id) {
+            // ملاحظة: في التطبيقات الحقيقية يتم أرشفة الشخص وليس حذفه نهائياً
+            // لتجنب فقدان سجلاته القديمة. هنا للحذف المباشر للتجربة:
+            state.people = state.people.filter(p => p.id !== id);
+            renderTracker();
+            showToast("تم إزالة الاسم من القائمة");
+        }
+
+        function saveAttendance() {
+            // هنا في الوضع المؤقت، نقوم فقط بعرض رسالة نجاح.
+            // عند ربط قواعد البيانات، سيتم إرسال state.attendanceRecords هنا.
+            showToast(`تم حفظ سجل الحضور ليوم ${state.currentDate}`);
+            
+            // إضافة تأثير بصري جميل عند الحفظ
+            const btn = document.querySelector('.bg-gradient-to-r');
+            btn.innerHTML = '<i class="fas fa-check text-xl"></i>';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-save text-xl"></i>';
+            }, 2000);
+        }
+
+        function switchView(viewName) {
+            state.view = viewName;
+            renderApp();
+        }
+
+        // --- وظائف المساعدة (Helpers) ---
+        
+        function updateNavUI(activeEl, inactiveEl) {
+            activeEl.classList.remove('text-gray-400');
+            activeEl.classList.add('text-primary');
+            inactiveEl.classList.remove('text-primary');
+            inactiveEl.classList.add('text-gray-400');
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const icon = toast.querySelector('i');
+            
+            toastMsg.textContent = message;
+            
+            if(isError) {
+                toast.classList.replace('bg-gray-800', 'bg-red-600');
+                icon.className = 'fas fa-exclamation-triangle';
+            } else {
+                toast.classList.replace('bg-red-600', 'bg-gray-800');
+                icon.className = 'fas fa-check-circle text-green-400';
+            }
+
+            toast.classList.remove('opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
